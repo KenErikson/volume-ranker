@@ -9,8 +9,7 @@ const restartBtn = document.getElementById("restartBtn");
 const saneBtn = document.getElementById("saneBtn");
 const nopeBtn = document.getElementById("nopeBtn");
 
-const correctList = document.getElementById("correctList");
-const wrongList = document.getElementById("wrongList");
+const historyList = document.getElementById("historyList");
 
 let numbers = [];
 let index = 0;
@@ -27,34 +26,46 @@ function shuffle(arr) {
 }
 
 function generateNumbers() {
-  const evens = [];
-  const odds = [];
+  const selected = new Set();
+  let evenCount = 0;
+  let endingWith5Count = 0;
+  let endingWith0Count = 0;
 
-  for (let i = 0; i <= 100; i++) {
-    (i % 2 === 0 ? evens : odds).push(i);
+  while (selected.size < TOTAL) {
+    const n = Math.floor(Math.random() * 101);
+
+    if (selected.has(n)) continue;
+
+    // Constraint: max 4 evens
+    if (n % 2 === 0 && evenCount >= MAX_EVEN) continue;
+
+    // Constraint: max 1 ending with 5
+    if (n % 10 === 5 && endingWith5Count >= 1) continue;
+
+    // Constraint: max 1 ending with 0
+    if (n % 10 === 0 && endingWith0Count >= 1) continue;
+
+    // Accept number
+    selected.add(n);
+    if (n % 2 === 0) evenCount++;
+    if (n % 10 === 5) endingWith5Count++;
+    if (n % 10 === 0) endingWith0Count++;
   }
 
-  shuffle(evens);
-  shuffle(odds);
-
-  const selected = [
-    ...evens.slice(0, MAX_EVEN),
-    ...odds.slice(0, TOTAL - MAX_EVEN),
-  ];
-
-  shuffle(selected);
-  return selected;
+  return Array.from(selected);
 }
 
 function addHistoryItem(value, isCorrect) {
   const el = document.createElement("div");
-  el.textContent = value;
 
   const isSane = solution.Sane.has(value);
-  el.className = `history-item ${isSane ? "sane" : "nope"}`;
 
-  (isCorrect ? correctList : wrongList).appendChild(el);
+  el.textContent = value;
+  el.className = `history-item ${isSane ? "sane" : "nope"} ${isCorrect ? "correct" : "wrong"}`;
+
+  historyList.appendChild(el);
 }
+
 
 function blink(isCorrect) {
   bigNumber.classList.remove("correct-blink", "wrong-blink");
@@ -123,8 +134,7 @@ async function start() {
   index = 0;
   correct = 0;
 
-  correctList.innerHTML = "";
-  wrongList.innerHTML = "";
+  historyList.innerHTML = "";
 
   saneBtn.disabled = nopeBtn.disabled = false;
   restartBtn.hidden = true;

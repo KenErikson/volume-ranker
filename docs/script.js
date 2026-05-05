@@ -1,90 +1,140 @@
-const NUMBERS_PER_RUN = 20;
+const TOTAL = 10;
+const MAX_EVEN = 4;
 
-const numbersDiv = document.getElementById("numbers");
-const tiers = document.querySelectorAll(".tier");
-const resultDiv = document.getElementById("result");
-const scoreBtn = document.getElementById("scoreBtn");
-const resetBtn = document.getElementById("resetBtn");
+const bigNumber = document.getElementById("bigNumber");
+const remaining = document.getElementById("remaining");
+const result = document.getElementById("result");
+const restartBtn = document.getElementById("restartBtn");
 
-let dragged = null;
-let currentNumbers = [];
+const saneBtn = document.getElementById("saneBtn");
+const nopeBtn = document.getElementById("nopeBtn");
 
-// Drag logic
-function makeDraggable(el) {
-  el.draggable = true;
-  el.addEventListener("dragstart", () => {
-    dragged = el;
-  });
-}
+const correctList = document.getElementById("correctList");
+const wrongList = document.getElementById("wrongList");
 
-tiers.forEach(tier => {
-  tier.addEventListener("dragover", e => e.preventDefault());
-  tier.addEventListener("drop", () => {
-    if (dragged) tier.appendChild(dragged);
-  });
-});
+let numbers = [];
+let index = 0;
+let correct = 0;
+let solution = null;
 
-// Random subset generation
-function pickRandomNumbers(count) {
-  const all = Array.from({ length: 101 }, (_, i) => i);
-  for (let i = all.length - 1; i > 0; i--) {
+/* ---------- helpers ---------- */
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [all[i], all[j]] = [all[j], all[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return all.slice(0, count).sort((a, b) => a - b);
 }
 
-// Setup new run
-function setupNewRun() {
-  numbersDiv.innerHTML = "";
-  tiers.forEach(t =>
-    t.querySelectorAll(".number").forEach(n => n.remove())
-  );
-  resultDiv.textContent = "";
+function generateNumbers() {
+  const evens = [];
+  const odds = [];
 
-  currentNumbers = pickRandomNumbers(NUMBERS_PER_RUN);
-  currentNumbers.forEach(n => {
-    const el = document.createElement("div");
-    el.className = "number";
-    el.textContent = n;
-    makeDraggable(el);
-    numbersDiv.appendChild(el);
-  });
+  for (let i = 0; i <= 100; i++) {
+    (i % 2 === 0 ? evens : odds).push(i);
+  }
+
+  shuffle(evens);
+  shuffle(odds);
+
+  const selected = [
+    ...evens.slice(0, MAX_EVEN),
+    ...odds.slice(0, TOTAL - MAX_EVEN),
+  ];
+
+  shuffle(selected);
+  return selected;
 }
 
-// Scoring
-scoreBtn.onclick = async () => {
-  const solution = await fetch("volume-tiers.json").then(r => r.json());
+function addHistoryItem(value, isCorrect) {
+  const el = document.createElement("div");
+  el.textContent = value;
 
-  let placed = 0;
-  let correct = 0;
+  const isSane = solution.Sane.has(value);
+  el.className = `history-item ${isSane ? "sane" : "nope"}`;
 
-  tiers.forEach(tier => {
-    const tierName = tier.dataset.tier;
-    const correctSet = new Set(solution.tiers[tierName]);
+  (isCorrect ? correctList : wrongList).appendChild(el);
+}
 
-    tier.querySelectorAll(".number").forEach(num => {
-      placed++;
-      const value = Number(num.textContent);
-      if (correctSet.has(value)) {
-        correct++;
-        num.style.background = "#c8f7c5";
-      } else {
-        num.style.background = "#f7c5c5";
-      }
-    });
-  });
+function blink(isCorrect) {
+  bigNumber.classList.remove("correct-blink", "wrong-blink");
+  void bigNumber.offsetWidth; // reset animation
+  bigNumber.classList.add(isCorrect ? "correct-blink" : "wrong-blink");
+}
 
-  if (placed !== currentNumbers.length) {
-    resultDiv.textContent = "Place all numbers before scoring.";
+/* ---------- quiz logic ---------- */
+
+function updateUI() {
+  if (index >= numbers.length) {
+    bigNumber.textContent = "✓";
+    remaining.textContent = "";
+    result.textContent = `Score: ${correct} / ${TOTAL} (${Math.round(
+      (correct / TOTAL) * 100
+    )}%)`;
+    saneBtn.disabled = nopeBtn.disabled = true;
+    restartBtn.hidden = false;
     return;
   }
 
-  const percent = Math.round((correct / placed) * 100);
-  resultDiv.textContent = `Score: ${correct}/${placed} (${percent}%)`;
-};
+  bigNumber.textContent = numbers[index];
 
-resetBtn.onclick = setupNewRun;
+  // Exclude current number from remaining display
+  remaining.textContent =
+    `Remaining: ${numbers.slice(index + 1).join(", ")}`;
+}
 
-// Initial load
-setupNewRun();
+function answer(choice) {
+  if (index >= numbers.length) return;
+
+  const value = numbers[index];
+  const isCorrect = solution[choice].has(value);
+
+  blink(isCorrect);
+  addHistoryItem(value, isCorrect);
+  if (isCorrect) correct++;
+
+  index++;
+  updateUI();
+}
+
+/* ---------- keyboard input ---------- */
+
+document.addEventListener("keydown", e => {
+  if (saneBtn.disabled) return;
+
+  if (e.key === "ArrowLeft") {
+    answer("Sane");
+  } else if (e.key === "ArrowRight") {
+    answer("Nope");
+  }
+});
+
+/* ---------- init ---------- */
+
+async function start() {
+  solution = await fetch("volume-tiers.json")
+    .then(r => r.json())
+    .then(data => ({
+      Sane: new Set(data.tiers.Sane),
+      Nope: new Set(data.tiers.Nope),
+    }));
+
+  numbers = generateNumbers();
+  index = 0;
+  correct = 0;
+
+  correctList.innerHTML = "";
+  wrongList.innerHTML = "";
+
+  saneBtn.disabled = nopeBtn.disabled = false;
+  restartBtn.hidden = true;
+  result.textContent = "";
+
+  updateUI();
+}
+
+saneBtn.onclick = () => answer("Sane");
+nopeBtn.onclick = () => answer("Nope");
+restartBtn.onclick = start;
+
+start();

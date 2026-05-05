@@ -2,28 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Volume Tier Quiz</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Volume Sanity Test</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Volume Tier Quiz</h1>
-  <p>Drag each volume level into <strong>Sane</strong> or <strong>Nope</strong>.</p>
+  <div id="app">
 
-  <div id="numbers"></div>
+    <div id="remaining"></div>
 
-  <div class="tiers">
-    <div class="tier" data-tier="Sane">
-      <h2>Sane</h2>
+    <div id="bigNumber">—</div>
+
+    <div id="buttons">
+      <button id="saneBtn" class="sane">SANE</button>
+      <button id="nopeBtn" class="nope">NOPE</button>
     </div>
-    <div class="tier" data-tier="Nope">
-      <h2>Nope</h2>
+    <div id="hint">Keyboard: ← / →</div>
+    <div id="history">
+      <h3>Answered</h3>
+      <div id="historyList" class="history-box"></div>
     </div>
+    <div id="result"></div>
+
+    <button id="restartBtn" hidden>New Test</button>
+
   </div>
-
-  <button id="scoreBtn">Score</button>
-  <button id="resetBtn">New Random Set</button>
-
-  <div id="result"></div>
 
   <script src="script.js"></script>
 </body>
